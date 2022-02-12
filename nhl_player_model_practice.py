@@ -369,15 +369,19 @@ Now from here there is just checking whether these classifications mean anything
 
 What I will want to check is:
 a) Player class over time (especially on entry-level-contract, to see if
-   and patterns are common); this is why I started with Ovechkin/Crosby's rookie
-   year. (It's also conveniently considered the first year (or close to it) of
-   a new era of hockey).
+   and patterns are common); this one of the reasons why I started with 
+   Ovechkin/Crosby's rookie year. (The main reason is that it is considered the first year 
+   (or close to it) of a new era of hockey).
 b) Team player composition
 
 The first part is quite important. On account of having as many data points available,
 I will run all the years then look at groups of points (i.e. forwards).
 Also, I didn't mention this assumption before, but I am also assuming that
 defensemen play fundamentally different role/have different skills than forwards.
+
+EDITED TO ADD (1/2022): 
+I checked several "key" players on different teams, their "player class" did not change 
+a lot over time. 
 """
 # f1 is the name of the df storing all the forward offensive data
 # test1 is the name of the df storing all the forward defensive data
