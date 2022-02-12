@@ -1,7 +1,7 @@
 # practice scrape and clean method
 
 """ Usage:python3
- make a histogram with one of the years and points
+Purpose: Playing around with histograms and data to determine some of the cut-off values used in other modeling. 
 
 """
 import pandas as pd
