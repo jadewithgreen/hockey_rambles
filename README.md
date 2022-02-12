@@ -1,5 +1,5 @@
 # hockey_rambles
-exploration of hockey  ata dictated by the whims of a hockey fan 
+aka hockey analysis dictated by the whims of a random hockey fan 
 
 This respository is an explorative look at hockey data from the 2005-06 season to the 2016-17 season. I specifically chose to start with 2005, as I personally feel like that was the beginning of the "modern" era of hockey as we know it now in 2022. I ended with 2017, since that endpoint provides 10 full seasons of data (as 2012-13 was a lockout shortened season). 
 
