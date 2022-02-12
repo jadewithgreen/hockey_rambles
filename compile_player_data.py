@@ -3,6 +3,7 @@
 written in python3
 Purpose: To combine datasets over the different seasons and clean existing
 dataset.
+Results in excel file (also in this repo) of compliled player data.
 """
 
 import numpy as np
