@@ -117,6 +117,8 @@ the highs are so high)
 #now to graph
 
 # choosing kmeans++ as initializer after trying the random start first
+# changed the number of forward classes to 2
+# edit -- changed number of forward classes back to 3
 y_pred = KMeans(n_clusters = 3).fit_predict(X_test_max_abs_05)
 # plot eigenvectors with assumed number of clusters (3 based on the initial,
 #good, average, and bad assumption)
@@ -274,7 +276,7 @@ x_r4 = pca1.fit(X_pow_05).transform(X_pow_05)
 print("explained variance ratios with power transformer scaler: %s"% str(pca1.explained_variance_ratio_))
 
 # as anticipated, max_ab scaler still performed the best
-
+# 2 defensive classes
 y_pred1 = KMeans(n_clusters = 2).fit_predict(X_max_05)
 # plot eigenvectors with assumed number of clusters (2 for a 1st go)
 plt.scatter(X_r2[:, 0], X_r2[:, 1], c = y_pred1, s = 5, marker = "x")
@@ -287,40 +289,25 @@ plt.ylabel("2nd PCA component")
 plt.show()
 
 """
-Let's do a quick thought experiment. At the moment we have lots of possibilities
-based on previously mentioned assumptions:
-1. 2 offensive classes and 2 defensive classes
-2. 2 offensive classes and 3 defensive classes
-3. 3 offensive classes and 2 defensive classes
-4. 3 offensive classes and 3 defensive classes
-5. 4 offensive classes and 2 defensive classes
-6. 4 offensive classes and 3 defensive classes
 
-(There can never be more than 3 defensive classes based on the amount of data
-that I previously labeled as defensive, since there are only 3 features).
-
-According to traditional forward performance analysis (previously mentioned in
-one of the first comments of this documentation), there are 6 forward classes.
-I have no idea whether this is actually the case, but let's move forward as if
-it is for exploration purposes (since this is an unsupervised learning project anyway).
-
-Applying basic statistics to our list of class combination possibilities, this
-means that we have either:
-a. 2 offensive classes and 3 defensive classes
-or
-b. 3 offensive classes and 2 defensive classes
-
-The latter is far more likely based on my understanding of hockey, so we will
-move on with a new assumption:
-    The type of forward a player is caused by a combination of their specific
-    offensive class and defensive class, for 6 possible combinations. For
-    labelling sake, we will say:
+EDIT 2/12/2022 (from model practice before)
+Went back to check my forward classification, and there are 1 empty class
+6. I tried the below scheme:
     - type1 = Offensive class 1 + Defensive class 1
     - type2 = Offensive class 1 + Defensive class 2
     - type3 = Offensive class 2 + Defensive class 1
     - type4 = Offensive class 2 + Defensive class 2
-    - type5 = Offensive class 3 + Defensive class 1
-    - type6 = Offensive class 3 + Defensive class 2
+
+However, I may have lost a lot of value here (like star players). I checked
+the classes forward 2005 forwards, and I noticed a lot of "star talent"
+was in offense class 3.
+So I'm going to try setting out offensive class 3 to default into in a different
+forward class aka:
+    - type1 = Offensive class 1 + Defensive class 1
+    - type2 = Offensive class 1 + Defensive class 2
+    - type3 = Offensive class 2 + Defensive class 1
+    - type4 = Offensive class 2 + Defensive class 2
+    - type5 = Offensive class 3
 """
 
 #now let's combine the labels
@@ -356,10 +343,8 @@ for x in range(0, len(combo_class_2005)):
         else:
             type_list.append(4)
     # offense class must be 2 (out of 0, 1, 2)
-    elif combo_class_2005.iat[x, combo_class_2005.columns.get_loc("Defense Class")] == 0:
-        type_list.append(5)
     else:
-        type_list.append(6)
+        type_list.append(5)
 #add type list to combination df
 combo_class_2005.insert(loc = 1, column = "Forward Class", value = type_list)
 #combo_class_2005.to_csv("foward_classes_2005.csv", index = False)
@@ -369,46 +354,17 @@ Now from here there is just checking whether these classifications mean anything
 
 What I will want to check is:
 a) Player class over time (especially on entry-level-contract, to see if
-   and patterns are common); this one of the reasons why I started with 
-   Ovechkin/Crosby's rookie year. (The main reason is that it is considered the first year 
-   (or close to it) of a new era of hockey).
+   and patterns are common); this is why I started with Ovechkin/Crosby's rookie
+   year. (It's also conveniently considered the first year (or close to it) of
+   a new era of hockey).
 b) Team player composition
 
 The first part is quite important. On account of having as many data points available,
 I will run all the years then look at groups of points (i.e. forwards).
 Also, I didn't mention this assumption before, but I am also assuming that
 defensemen play fundamentally different role/have different skills than forwards.
-
-EDITED TO ADD (1/2022): 
-I checked several "key" players on different teams, their "player class" did not change 
-a lot over time. 
 """
 # f1 is the name of the df storing all the forward offensive data
-# test1 is the name of the df storing all the forward defensive data
+
 # there are 14 seasons to consider that need to be scaled separately
 
-"""
-df = pd.read_csv("rel_forward_defensive_data_wteam.csv")
-df_2005 = df[df["Season"] == "2005-06"]
-teams = df_2005["Team"].tolist()
-combo_class_2005.insert(loc = 1, column = "Team", value = teams)
-#combo_class_2005.to_csv("foward_classes_2005_teams.csv", index = False)
-#let's check the top teams first
-# note: atlanta thrashers moved and became the winnepeg jets later
-# pheonix also became arizona
-team_abbrev = ["SJS", "NYR", "WSH", "OTT", "PIT", "CAR", "ATL", "TBL", "ANA",
-"NJD", "FLA", "COL", "DET", "NSH", "PHI", "MIN", "VAN", "TOR", "DAL", "EDM",
-"BOS", "BUF", "CGY", "NYI", "PHX", "LAK", "MTL", "CBJ", "CHI", "STL"]
-team_check1 = combo_class_2005[combo_class_2005["Team"] == "OTT"]
-# top regular season teams in 2005-06 were NJD, OTT, CAR, DET, CAL, DAL (division leaders)
-# following them (based on points): BUF, NSH, PHI, NYR, SJS, ANA, EDM
-# to hold the count of each type
-team_for_comp = [0, 0, 0, 0, 0, 0]
-comp_labels = ["Type 1", "Type 2", "Type 3", "Type 4", "Type 5", "Type 6"]
-for i in range(0, len(team_for_comp)):
-    temp = team_check1[team_check1["Forward Class"] == i+1]
-    team_for_comp[i] = len(temp)
-
-from tabulate import tabulate
-print(tabulate({"Player Types" : comp_labels, "Count" : team_for_comp}, headers = "keys"))
-"""
