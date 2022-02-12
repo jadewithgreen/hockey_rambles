@@ -84,7 +84,9 @@ X_def_d_df = pd.DataFrame(X_def_d, columns = ["H/TOI", "BS/TOI", "+/-"])
 Now that I have my full combined datasets, each subset's features scaled by the
 season's maximum absolute value of that feature, I will start PCA.
 """
-pca = PCA(n_components = 3)
+# changed the number of forward offense classes to 2
+# changed number of forward off classes back to 3
+pca = PCA(n_components = 2)
 X_r = pca.fit(X_off).transform(X_off)
 print("explained variance ratios in forward offense data: %s"% str(pca.explained_variance_ratio_))
 pca1 = PCA(n_components = 2)
@@ -102,10 +104,13 @@ print("explained variance ratios in defenseman defense data: %s"% str(pca.explai
 
 from sklearn.cluster import KMeans
 # checked several seeds, results are pretty stable
+# 3 forward offensive classes
 y_pred_off = KMeans(n_clusters = 3, random_state = 0).fit_predict(X_off)
+# 2 forward defensive classes
 y_pred_def = KMeans(n_clusters = 2, random_state = 0).fit_predict(X_def)
-
+# 2 defenseman offensive classes
 y_pred_off_d = KMeans(n_clusters = 2, random_state = 8).fit_predict(X_off_d)
+# 2 defenseman defensive classes
 y_pred_def_d = KMeans(n_clusters = 2, random_state = 8).fit_predict(X_def_d)
 #plot along eigenvector axes
 fig, axs = plt.subplots(2, 2)
@@ -122,7 +127,7 @@ axs[1, 1].set_title("KMeans clusters with defenseman offensive data")
 
 
 # comment this in or out to show the plot
-#plt.show()
+plt.show()
 
 # now combine labels
 off_class_list = y_pred_off.tolist()
@@ -162,19 +167,23 @@ and 4 kinds of defensemen:
 
 Defensive, Enforcer, Offensive, Two-Way
 
-However, since I began this wanting to know possible offensive classes, and those
+Initially, since I began this wanting to know possible offensive classes, and those
 categories cover (presumably) the combination of two different classes
-(defensive capabilities + offensive capabilities), I will have to try a variety of
+(defensive capabilities + offensive capabilities), I tried a variety of
 different number of classes, from 3 to 6, with the possibility of expanding
-out that range. My assumptions leading to this are:
+out that range. My assumptions leading to this were:
 - There are at least 3 types of offensive capabilities (good, mediocre, bad) at
   even strength
 - At least some of the known player types (which are typically described in a subjective manner)
   can be derived from numerical data, which is a mix of "offensive" data and
   "defensive data"
-
-Using the assumptions above (and then some), we will use the "offensive"
-and "defensive" classes to describe a "forward class."
+However, after testing a number of forward classes, if I cut the number
+of offensive classes for forwards down, the distribution becomes a little
+strange (heavily waited between 2 of them). So I tried automatically assigning
+certain offensive classes to a forward class. Since Forward Class 3 had
+0 players in it, I took this opportunity to combine forward class 3 and 4, meaning
+that if a player falls in offensive class 1, they are automatically forward
+class 3.
 """
 forward_class_list = [] #create empty list to append to
 for i in range(0, len(X_full)): #iterate over all the forwards
@@ -185,15 +194,14 @@ for i in range(0, len(X_full)): #iterate over all the forwards
         else:
             forward_class_list.append(2) # assign type 2/ FClass 2
     elif X_full.iat[i, X_full.columns.get_loc("Offensive Class")] == 1:
-        if X_full.iat[i, X_full.columns.get_loc("Defensive Class")] == 0:
             forward_class_list.append(3) #type 3/ FClass 3
-        else:
-            forward_class_list.append(4) #type 4/ FClass 4
-    # offensive class must be 2 (out of 0, 1, 2)
-    elif X_full.iat[i, X_full.columns.get_loc("Defensive Class")] == 0:
-        forward_class_list.append(5) #type 5/ FClass 5
     else:
-        forward_class_list.append(6) #type 6/ FClass 6
+        if X_full.iat[i, X_full.columns.get_loc("Defensive Class")] == 0:
+            forward_class_list.append(4) #type 3/ FClass 3
+        else:
+            forward_class_list.append(5) #type 5/ FClass 5
+
+
 #add type list to combination df
 X_full.insert(loc = 1, column = "Forward Class", value = forward_class_list)
 
@@ -241,15 +249,15 @@ seasons = team_data["Season"].unique()
 rosters = pd.read_csv("rel_skater_data.csv", encoding = "utf-8")
 rosters = rosters[["Season", "Name", "Team", "Pos"]]
 # sort the team data by season and team (should already be sorted by season)
-team_data = team_data.sort_values(["Season", "Team", "PTS", "W", "L", "OT","GF", "GA"],
-                            ascending = [True, True, False, False, False, False, False, False])
+team_data = team_data.sort_values(["Season", "Team", "PTS", "W", "L", "OT","GF", "GA", "Playoffs"],
+                            ascending = [True, True, False, False, False, False, False, False, False])
 # cut all the other columns out (which are unformatted)
-team_data = team_data[["Season", "Team", "W", "L", "OT", "PTS", "GF", "GA"]]
+team_data = team_data[["Season", "Team", "W", "L", "OT", "PTS", "GF", "GA", "Playoffs"]]
 # set up empty dataframe with the descriptive features I want
 # in this case FClass 1 refers to the number of forwards a given team has in
 #Class 1 in a given season
-class_comp = pd.DataFrame(columns = ["Season", "Team", "FClass 1", "FClass 2", "FClass 3", "FClass 4",
-                                        "FClass 5", "FClass 6","DClass 1", "DClass 2", "DClass 3", "DClass 4"])
+class_comp = pd.DataFrame(columns = ["Season", "Team", "FClass 1", "FClass 2", "FClass 3", "FClass 4", "FClass 5",
+                                        "DClass 1", "DClass 2", "DClass 3", "DClass 4"])
 for i in range(0, num_seasons):
     # pull data from relevant season
     season_data = team_data[team_data["Season"] == seasons[i]]
@@ -300,8 +308,7 @@ for i in range(0, num_seasons):
         #going to approach this by making the previous list into dictionary
         # where keys are the column names and the values are the
         # season's defense classes and season's forward classes
-        for_key_list = ["FClass 2", "FClass 3", "FClass 4",
-                                                "FClass 5", "FClass 6"]
+        for_key_list = ["FClass 1", "FClass 2", "FClass 3", "FClass 4", "FClass 5"]
         for_dict = dict(zip(for_key_list, season_forward_classes))
         def_key_list = ["DClass 1", "DClass 2", "DClass 3", "DClass 4"]
         def_dict = dict(zip(def_key_list, season_defense_classes))
@@ -316,22 +323,19 @@ for i in range(0, num_seasons):
         # now make into dataframe
         class_comp = class_comp.append(player_dict, ignore_index = True)
 # check end array, should be 30 (num teams per season) x 12 (num seasons)
-#print(class_comp.shape)
+print(class_comp.shape)
 # fill all the null values
 class_comp = class_comp.fillna(0)
 """
-Was curious about some of the distributions
-class_comp_2006 = class_comp[class_comp["Season"] == "2006-07"]
-#names = ["F1", "F2", "F3", "F4","F5", "F6","D1", "D2", "D3", "D4"]
-all_values = class_comp_2006[["FClass 1", "FClass 2", "FClass 3", "FClass 4",
-                                        "FClass 5", "FClass 6","DClass 1", "DClass 2", "DClass 3", "DClass 4"]]
+#Was curious about some of the distributions
+all_values = class_comp[["FClass 1", "FClass 2", "FClass 3", "FClass 4", "FClass 5",
+                                        "DClass 1", "DClass 2", "DClass 3", "DClass 4"]]
 
 total_f1 = all_values["FClass 1"].sum()
 total_f2 = all_values["FClass 2"].sum()
 total_f3 = all_values["FClass 3"].sum()
 total_f4 = all_values["FClass 4"].sum()
 total_f5 = all_values["FClass 5"].sum()
-total_f6 = all_values["FClass 6"].sum()
 total_d1 = all_values["DClass 1"].sum()
 total_d2 = all_values["DClass 2"].sum()
 total_d3 = all_values["DClass 3"].sum()
@@ -342,7 +346,6 @@ print("Total FClass2:" + str(total_f2))
 print("Total FClass3:" + str(total_f3))
 print("Total FClass4:" + str(total_f4))
 print("Total FClass5:" + str(total_f5))
-print("Total FClass6:" + str(total_f6))
 print("Total DClass1:" + str(total_d1))
 print("Total DClass2:" + str(total_d2))
 print("Total DClass3:" + str(total_d3))
@@ -384,7 +387,7 @@ class_comp_05to10 = class_comp[class_comp["Season"].isin(train_season_list)]
 class_comp_10to17 = class_comp[class_comp["Season"].isin(test_season_list)]
 X_train = class_comp_05to10.drop(columns = ["Season", "Team"])
 X_test = class_comp_10to17.drop(columns = ["Season", "Team"])
-print(X_train.shape)
+
 # pull the points values from master df
 # this is the same data frame used to format all the data, so all the values
 #should be ordered correctly
@@ -394,7 +397,7 @@ team_points_05to10 = team_points[team_points["Season"].isin(train_season_list)]
 team_points_10to17 = team_points[team_points["Season"].isin(test_season_list)]
 team_points_train = team_points_05to10.drop(columns = ["Season", "Team"])
 team_points_test = team_points_10to17.drop(columns = ["Season", "Team"])
-print(team_points_train.shape)
+
 # train model using 2005-2010 data
 reg.fit(X_train, team_points_train)
 
@@ -407,7 +410,7 @@ print("mean squared error: %.2f" % mean_squared_error(team_points_test, y_pred))
 print("OLS coefficient of determination for points pred: %.2f" % r2_score(team_points_test, y_pred))
 
 """
-Got 74% accuracy using this, which is actually... surprisingly high considering
+Got over 70% accuracy using this, which is actually... surprisingly high considering
 how this model got developed.
 
 Next, I want to check the goals for (GF) and goals against (GA) together, since
@@ -443,8 +446,34 @@ print("OLS coefficient of determination for GF pred: %.2f" % r2_score(team_gf_te
 print("OLS coefficient of determination for GA pred: %.2f" % r2_score(team_ga_test, y_pred3))
 
 """
-These results were all also interestingly negative... fascinating.
+These results were all also interestingly negative... fascinating. Since the using
+points as a target didn't go too poorly, I want to explore the making playoffs/not
+making playoffs classification. Since it's binary, I want to start with SVM.
 """
+from sklearn import svm
+
+X_train_svm = X_train
+playoff_class = team_data[["Season", "Team", "Playoffs"]]
+playoff_class_05to10 = playoff_class[playoff_class["Season"].isin(train_season_list)]
+playoff_class_10to17 = playoff_class[playoff_class["Season"].isin(test_season_list)]
+y_train = playoff_class_05to10.drop(columns = ["Season", "Team"])
+y_test = playoff_class_10to17.drop(columns = ["Season", "Team"])
 
 
+#do the modeling
+clf = svm.SVC()
+clf.fit(X_train_svm, np.ravel(y_train))
 
+svm_pred = clf.predict(X_test)
+# determine accuracy
+num_correct = 0
+y_test_array = y_test.to_numpy()
+for i in range(0, len(y_test_array)):
+    if y_test_array[i] == svm_pred[i]:
+        num_correct+=1
+print("SVM prediction accuracy = " + str(num_correct/len(y_test_array)))
+
+#flatten down for plotting
+pca_svm = PCA(n_components = 2)
+X_svm_red = pca_svm.fit(X_train_svm).transform(X_train_svm)
+print("explained variance ratios in first 2 components: %s"% str(pca.explained_variance_ratio_))
